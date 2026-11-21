@@ -30,7 +30,7 @@ h1{font-size:28px;font-weight:800}h2{font-size:22px;font-weight:800;margin:28px 
 .wrap{max-width:860px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) max(4vw,14px,env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) max(4vw,14px,env(safe-area-inset-left))}
 header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding-bottom:10px}
 header p{margin:0;color:var(--mute);font-size:14px}
-.pt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;background:var(--card);border-radius:12px;padding:12px}
+.pt[hidden]{display:none}.pt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;background:var(--card);border-radius:12px;padding:12px}
 label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
 input,select,button{font:inherit;font-size:16px;color:var(--ink)}
 input,select{width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
@@ -73,12 +73,14 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .danger{border-left:4px solid var(--red)}
 .rf{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0}.rf small{display:block;color:var(--mute)}
 .scroll{overflow-x:auto}
+.seg{display:flex;gap:4px;flex-wrap:wrap}.seg button{flex:1 1 150px;min-height:44px;border:1px solid var(--line);background:var(--bg);border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;color:var(--mute)}.seg button[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+td select{min-height:40px;font-size:15px}
 footer{margin-top:32px;font-size:13px;color:var(--mute)}
 @media(max-width:600px){.pt,.form{grid-template-columns:repeat(2,minmax(0,1fr))}table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}}
 @media(prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script></head>
 <body><div class="wrap">
-<header><h1>AnaesDose</h1><p>LA dose tracker, awake fibreoptic topicalisation, infusion conversion and toxicity limits. For trained clinicians.</p></header>
+<header><h1>AnaesDose</h1><p>Paediatric and neonatal doses, LA dose tracker, awake fibreoptic, infusions, toxicity limits and LAST. For trained clinicians.</p></header>
 
 <div class="pt">
   <div><label for="wt">Weight (kg)</label><input id="wt" type="number" inputmode="decimal" min="1" step="0.1" value="70"></div>
@@ -93,14 +95,25 @@ footer{margin-top:32px;font-size:13px;color:var(--mute)}
   <p class="note">Suggested reductions follow the multifactorial approach of Rosenberg et al. (2004). Ticking a factor fills the middle of its range; every value is editable. The <b>highest</b> ticked reduction applies to all maxima — factors are not added together. Starting values are approximate: confirm them against the paper and local guidance.</p>
   <div id="rf"></div>
 </details>
-<p class="note" style="margin:10px 0 0">Adults 18 and over only. Every maximum is a ceiling, not a target. Verify each calculation independently before giving anything.</p>
+<p class="note" id="adnote" style="margin:10px 0 0">Adults 18 and over only. Every maximum is a ceiling, not a target. Verify each calculation independently before giving anything.</p>
 
 <nav aria-label="Sections">
-  <a href="#dose">LA Dose</a><a href="#airway">Airway</a><a href="#infusion">Infusion</a><a href="#limits">Toxicity Limits</a><a href="#last">LAST</a>
+  <a href="#paeds">Paeds</a><a href="#dose">LA Dose</a><a href="#airway">Airway</a><a href="#infusion">Infusion</a><a href="#limits">Toxicity Limits</a><a href="#last">LAST</a>
 </nav>
 
+<!-- PAEDS -->
+<section id="v-paeds" hidden>
+  <div class="form" style="margin-top:6px">
+    <div><label for="cw">Child weight (kg)</label><input id="cw" type="number" inputmode="decimal" min="0.3" step="0.1" value="12"></div>
+    <div><label for="cage">Age</label><select id="cage"><option value="neo">Under 1 month</option><option value="inf">1–6 months</option><option value="pre" selected>6 months – 6 years</option><option value="sch">6 – 12 years</option><option value="teen">12 years and over</option></select></div>
+    <div class="full seg" role="tablist" id="pseg"><button data-s="emb" role="tab">Paediatric · Embrace</button><button data-s="pinf" role="tab">Paed infusions · PaNDR</button><button data-s="neo" role="tab">Neonatal · PaNDR</button></div>
+  </div>
+  <p class="note" id="pwarn"></p>
+  <div id="pbody"></div>
+</section>
+
 <!-- LA DOSE -->
-<section id="v-dose">
+<section id="v-dose" hidden>
   <div class="meter" id="meter"></div>
   <div class="form" id="addf">
     <div><label for="drug">Drug</label><select id="drug"></select></div>
@@ -394,10 +407,191 @@ let armed=false;
 $('clr').addEventListener('click',()=>{if(!log.length)return;if(!armed){armed=true;$('clr').textContent='Tap again to clear';setTimeout(()=>{armed=false;$('clr').textContent='Clear all'},3000);return}armed=false;$('clr').textContent='Clear all';log=[];store.set('log',log);all()});
 $('log').addEventListener('click',ev=>{const b=ev.target.closest('[data-i]');if(!b)return;log.splice(+b.dataset.i,1);store.set('log',log);all()});
 
-const views=['dose','airway','infusion','limits','last'];
-function route(){const h=location.hash.slice(1),v=views.includes(h)?h:'dose';views.forEach(x=>{$('v-'+x).hidden=x!==v});document.querySelectorAll('nav a').forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+v))}
+const views=['paeds','dose','airway','infusion','limits','last'];
+function route(){const h=location.hash.slice(1),v=views.includes(h)?h:'paeds';views.forEach(x=>{$('v-'+x).hidden=x!==v});const ad=v==='paeds';document.querySelector('.pt').hidden=ad;$('rfbox').hidden=ad;$('adnote').hidden=ad;document.querySelectorAll('nav a').forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+v))}
 window.addEventListener('hashchange',route);
 syncForm();route();all();
+/* ---------- PAEDS ---------- */
+// base units: mass in mcg, vasopressin in milliunits (mu), heparin in units (u)
+const MU={ng:.001,mcg:1,mg:1000,g:1e6,u:1,units:1,mu:1};
+const fx=(x)=>{if(!isFinite(x))return '–';const a=Math.abs(x);return a>=100?f(x,0):a>=10?f(x,1):a>=1?(+x.toFixed(2)).toString():(+x.toPrecision(2)).toString()};
+const mass=(mcg,kind)=>kind==='mu'?`${fx(mcg)} milliunits`:kind==='u'?`${fx(mcg)} units`:kind==='mmol'?`${fx(mcg)} mmol`:mcg>=1000?`${fx(mcg/1000)} mg`:mcg<1?`${fx(mcg*1000)} ng`:`${fx(mcg)} mcg`;
+const ml=v=>`${v<1?(+v.toFixed(2)):(+v.toFixed(1))} ml`;
+
+// Embrace paediatric chart v3.2023
+// bolus: [name, conc text, conc (base/ml) or 0, lo/kg, hi/kg, unit kind, min, max, note]
+const EMB_BOL=[
+ ['Induction',[
+  ['Ketamine','10 mg/ml',10000,1000,2000,'',0,0,''],
+  ['Rocuronium','10 mg/ml',10000,1000,1000,'',0,0,''],
+  ['Fentanyl','10 mcg/ml',10,2,5,'',0,0,''],
+  ['Atropine','600 mcg/ml',600,20,20,'',100,600,''],
+  ['Propofol 1%','10 mg/ml',10000,1000,4000,'',0,0,'Caution with cardiovascular instability'],
+  ['Thiopentone','25 mg/ml',25000,1000,5000,'',0,0,'']]],
+ ['Reversal',[
+  ['Naloxone (under 12 years)','',0,100,100,'',0,2000,'Emergency opioid overdose','u12'],
+  ['Sugammadex (for rocuronium)','100 mg/ml',100000,16000,16000,'',0,0,''],
+  ['Neostigmine/glycopyrronium','',0,'v0.02','v0.02','',0,'v2','For atracurium/rocuronium. Max 2 ml per course']]],
+ ['Resuscitation',[
+  ['Adrenaline 1:10,000','100 mcg/ml',100,10,10,'',0,1000,'0.1 ml/kg'],
+  ['Calcium gluconate 10%','',0,'v0.5','v0.5','',0,'v20',''],
+  ['Sodium bicarbonate 8.4%','1 mmol/ml',0,'v1','v1','',0,0,'1 mmol/kg'],
+  ['Glucose 10%','',0,'v2','v2','',0,0,''],
+  ['Lorazepam','',0,100,100,'',0,4000,''],
+  ['Sodium chloride 2.7%','',0,'v3','v5','',0,0,'Over 30 min'],
+  ['Mannitol 20%','200 mg/ml',0,'v2.5','v2.5','',0,0,'500 mg/kg over 30 min'],
+  ['Amiodarone (cardiac arrest)','',0,5000,5000,'',0,300000,'Over 3 min; use glucose flush'],
+  ['Atropine','600 mcg/ml',600,20,20,'',100,600,''],
+  ['Paracetamol IV','10 mg/ml',10000,15000,15000,'',0,1e6,'1 month/44 wk CGA to 18 y; over 15 min','par']]],
+ ['Push pressors (peripheral or central) — label as dilute',[
+  ['Adrenaline dilute bolus','10 mcg/ml (100 mcg in 10 ml NaCl 0.9%)',10,1,1,'',0,20,''],
+  ['Metaraminol','100 mcg/ml (1 mg in 10 ml NaCl 0.9%)',100,10,10,'',0,500,'']]]];
+// infusion: [name, band test, amount (base) or fn(W), volume ml, diluent, lo, hi, dose unit, note, kind]
+const EMB_INF=[
+ ['Sedatives, paralytics and other',[
+  ['Dinoprostone',null,300,50,'Glu 5%',5,100,'ng/kg/min','Follow ODN guideline or cardiology advice; neonatal profile on pump'],
+  ['Morphine','<50',W=>Math.min(1000*W,50000),50,'Glu 5% or NaCl 0.9%',20,40,'mcg/kg/h','1 mg/kg (max 50 mg)'],
+  ['Morphine','>=50',50000,50,'Glu 5% or NaCl 0.9%',20,40,'mcg/kg/h',''],
+  ['Midazolam','<40',W=>6000*W,50,'Glu 5% or NaCl 0.9%',120,360,'mcg/kg/h','6 mg/kg'],
+  ['Midazolam','>=40',W=>3000*W,50,'Glu 5% or NaCl 0.9%',120,360,'mcg/kg/h','3 mg/kg'],
+  ['Ketamine',null,50000,50,'Glu 5% or NaCl 0.9%',10,45,'mcg/kg/min',''],
+  ['Propofol 1%',null,500000,50,'Neat',.3,4,'mg/kg/h',''],
+  ['Rocuronium','<10',50000,25,'Glu 5% or NaCl 0.9%',300,600,'mcg/kg/h',''],
+  ['Rocuronium','>=10',250000,25,'Neat',300,600,'mcg/kg/h',''],
+  ['Atracurium','<10',250000,50,'Glu 5% or NaCl 0.9%',.5,1,'mg/kg/h',''],
+  ['Atracurium','>=10',250000,25,'Neat',.5,1,'mg/kg/h',''],
+  ['Heparin (arterial line)',null,50,50,'NaCl 0.9%',.5,2,'units/h','','u']]],
+ ['Vasoactive agents',[
+  ['Adrenaline, peripheral',null,1000,50,'NaCl 0.9%',.1,1.5,'mcg/kg/min',''],
+  ['Adrenaline, central','<50',W=>300*W,50,'Glu 5% or NaCl 0.9%',.1,1.5,'mcg/kg/min','300 mcg/kg'],
+  ['Adrenaline, central','>=50',16000,50,'Glu 5% or NaCl 0.9%',.1,1.5,'mcg/kg/min',''],
+  ['Dobutamine, peripheral',null,W=>Math.min(3000*W,250000),50,'Glu 5% or NaCl 0.9%',2,20,'mcg/kg/min','3 mg/kg (max 250 mg)'],
+  ['Dobutamine, central','<40',W=>15000*W,50,'Glu 5% or NaCl 0.9%',2,20,'mcg/kg/min','15 mg/kg'],
+  ['Dobutamine, central','>=40',625000,50,'Neat',2,20,'mcg/kg/min',''],
+  ['Noradrenaline, peripheral',null,1000,50,'Glu 5%',.02,1,'mcg/kg/min',''],
+  ['Noradrenaline, central','<50',W=>300*W,50,'Glu 5%',.02,1,'mcg/kg/min','300 mcg/kg'],
+  ['Noradrenaline, central','>=50',16000,50,'Glu 5%',.02,1,'mcg/kg/min',''],
+  ['Milrinone, peripheral',null,10000,50,'Glu 5% or NaCl 0.9%',.3,.75,'mcg/kg/min',''],
+  ['Milrinone, central',null,50000,50,'Neat',.3,.75,'mcg/kg/min',''],
+  ['Vasopressin, central','<10',10000,50,'Glu 5% or NaCl 0.9%',.15,2,'mu/kg/min','10 units','mu'],
+  ['Vasopressin, central','>=10',20000,50,'Glu 5% or NaCl 0.9%',.15,2,'mu/kg/min','20 units','mu']]]];
+const AGE_TAB=[['1 month',4.5,'3.5',9,11,'120–170','25–50','65–75','80–90'],['3 months',6,'3.5–4.0',10,12,'115–165','25–45','65–75','80–90'],['6 months',8,'4.0',12,14,'110–160','20–40','65–75','80–90'],['1 year',9.5,'4.0–4.5',13,15,'110–160','20–40','70–75','85–95'],['2 years',12,'4.5',13,15,'100–150','20–30','70–80','85–100'],['3 years',14,'5.0',14,16,'90–140','20–30','70–80','85–100'],['4 years',16,'5.0',14,17,'80–135','20–30','80–90','85–100'],['6 years',20,'5.5',15,19,'80–130','20–30','80–90','90–110'],['8 years',25,'6.0',16,20,'70–120','15–25','80–90','90–110'],['10 years',32,'6.5',17,21,'70–120','15–25','80–90','90–110'],['12 years',43,'7.0–7.5',18,22,'65–115','12–24','90–105','100–120'],['14 years',50,'7.5–8.0',21,25,'60–110','12–24','90–105','100–120'],['Adult','60–70','8.0–9.0','21–24','25–28','60–110','12–24','90–105','100–120']];
+const ANA={neo:'100–150 mcg (0.1–0.15 ml)',inf:'100–150 mcg (0.1–0.15 ml)',pre:'150 mcg (0.15 ml)',sch:'300 mcg (0.3 ml)',teen:'500 mcg (0.5 ml)'};
+
+// PaNDR paediatric v2.3 (concentration rules copied from the spreadsheet formulas)
+const PINF=[
+ ['Sedation and paralysis',[
+  ['Morphine',null,W=>Math.min(100,W)*1000,50,'NaCl 0.9% / Glu 5% or 10%',10,60,'mcg/kg/h','',4200],
+  ['Midazolam',null,W=>Math.min(250,5*W)*1000,50,'NaCl 0.9% / Glu 5% or 10%',30,200,'mcg/kg/h','',20000],
+  ['Vecuronium *',null,W=>Math.min(100,2.5*W)*1000,50,'NaCl 0.9% / Glu 5% or 10%',50,200,'mcg/kg/h',''],
+  ['Atracurium *',null,500000,50,'NaCl 0.9%',300,1800,'mcg/kg/h',''],
+  ['Rocuronium','<20',200000,20,'Neat',600,1000,'mcg/kg/h',''],
+  ['Rocuronium','>=20',500000,50,'Neat',600,1000,'mcg/kg/h',''],
+  ['Fentanyl *',null,W=>Math.min(2.5,.05*W)*1000,50,'NaCl 0.9% / Glu 5%',1,3,'mcg/kg/h',''],
+  ['Ketamine',null,500000,50,'NaCl 0.9% / Glu 5%',10,45,'mcg/kg/min','']]],
+ ['Vasoactive (central line unless stated)',[
+  ['Dopamine',null,W=>3*W*1000,50,'NaCl 0.9% / Glu 5% or 10%',5,20,'mcg/kg/min',''],
+  ['Dobutamine',null,W=>3*W*1000,50,'NaCl 0.9% / Glu 5% or 10%',5,20,'mcg/kg/min',''],
+  ['Noradrenaline, central',null,W=>Math.min(16,.3*W)*1000,50,'NaCl 0.9% / Glu 5% or 10%',.1,1,'mcg/kg/min',''],
+  ['Adrenaline, central',null,W=>.3*W*1000,50,'NaCl 0.9% / Glu 5% or 10%',.1,1,'mcg/kg/min',''],
+  ['Adrenaline, peripheral',null,W=>(W<13?.3*W:4)*1000,50,'NaCl 0.9% / Glu 5% or 10%',.1,1,'mcg/kg/min',''],
+  ['Dinoprostone','<7',50,50,'NaCl 0.9% / Glu 5% or 10%',5,20,'ng/kg/min','Only calculated under 7 kg'],
+  ['Aminophylline *',null,250000,250,'NaCl 0.9% / Glu 5% or 10%',.5,1,'mg/kg/h','Follow BNFC dosing for age'],
+  ['Salbutamol, peripheral',null,10000,50,'NaCl 0.9% / Glu 5% or 10%',1,5,'mcg/kg/min','',20*60],
+  ['Salbutamol, central',null,50000,50,'Neat',1,5,'mcg/kg/min','',20*60]]]];
+
+// PaNDR neonatal v15.1 (max 6 kg)
+const NEO_BOL=[
+ ['Resuscitation',[['Adrenaline 1:10,000','v',.2,20,'mcg','0.2 ml/kg = 20 mcg/kg'],['Calcium gluconate 10%','v',.5,.11,'mmol','0.5 ml/kg = 0.11 mmol/kg'],['Sodium bicarbonate 4.2%','v',4,0,'','4 ml/kg, undiluted'],['Sodium chloride 0.9% (volume)','v',10,0,'','10 ml/kg'],['Dextrose 10%','vr',2,5,'','2–5 ml/kg']]],
+ ['Intubation',[['Atropine','d',20,'mcg','20 mcg/kg'],['Fentanyl','d',2,'mcg','2 mcg/kg'],['Morphine bolus','d',100,'mcg','100 mcg/kg'],['Suxamethonium','d',2000,'mcg','2 mg/kg']]],
+ ['Miscellaneous',[['Hydrocortisone (hypotension)','d',2500,'mcg','2.5 mg/kg, 4-hourly; review dose every 24 h'],['Phenobarbitone (load)','d',20000,'mcg','20 mg/kg'],['Vecuronium','d',80,'mcg','80 mcg/kg'],['Pancuronium','d',100,'mcg','100 mcg/kg'],['Rocuronium','d',600,'mcg','600 mcg/kg']]]];
+// [name, final vol, [amount options], unit of options, lo, hi, dose unit]
+const NEO_INF=[['Dinoprostone',50,[50,200],'mcg',5,20,'ng/kg/min'],['Midazolam',50,[12.5,25,50,100],'mg',30,60,'mcg/kg/h'],['Morphine',50,[1.25,2.5,10,50],'mg',10,20,'mcg/kg/h'],['Rocuronium',50,[62.5,250,500],'mg',300,600,'mcg/kg/h'],['Vecuronium',50,[12.5,50],'mg',50,200,'mcg/kg/h'],['Adrenaline',20,[.2,.4,.8,3.2],'mg',.05,1,'mcg/kg/min'],['Dobutamine',20,[20,40,100],'mg',5,20,'mcg/kg/min'],['Dopamine',20,[20,30,90,240],'mg',5,20,'mcg/kg/min'],['Noradrenaline (base)',20,[.2,.4,.8,3.2],'mg',.02,1,'mcg/kg/min']];
+const NEO_ETT=[['Under 0.7','2.0',5,6],['0.7 to under 1.0','2.5',5.5,7],['1.0','3.0+',6,7.5],['2.0','3.0+',7,9],['3.0','3.0+',8.5,10.5],['3.5','3.5+',9,11]];
+let neoSel=store.get('neoSel',{});
+
+// dose unit -> [per-kg?, minutes?, base factor]
+function du(u){return {perkg:u.includes('/kg'),min:u.endsWith('/min'),k:u.startsWith('ng')?.001:u.startsWith('mg')?1000:1}}
+function rateFor(dose,u,W,concBase){const d=du(u);return dose*d.k*(d.perkg?W:1)*(d.min?60:1)/concBase}
+function bandOK(b,W){if(!b)return true;const n=parseFloat(b.replace(/[<>=]/g,''));return b.startsWith('>=')?W>=n:W<n}
+function uLabel(u){return u.replace('mu/','milliunits/').replace('/h','/h')}
+function amtTxt(a,kind){return kind==='mu'?`${fx(a/1000)} units`:kind==='u'?`${fx(a)} units`:mass(a)}
+
+function infRows(list,W,capCol){
+  return list.map(([grp,rows])=>`<h3 style="margin:18px 0 6px">${grp}</h3><table class="stack"><thead><tr><th>Drug</th><th>Make up</th><th>Dose range</th><th class="n">Rate</th></tr></thead><tbody>`+
+   rows.filter(r=>bandOK(r[1],W)).map(r=>{const [n,b,amt,vol,dil,lo,hi,u,note]=r;const kind=r[9]==='mu'||r[9]==='u'?r[9]:'';const cap=capCol?r[9]:0;
+    const a=typeof amt==='function'?amt(W):amt,c=a/vol;
+    const r1=rateFor(lo,u,W,c),r2=rateFor(hi,u,W,c);
+    const capRate=cap?cap/c:0;
+    const one=rateFor(1,u,W,c);
+    const per1=1/one;
+    return `<tr><td><b>${n}</b>${b?` <span class="note">${b.replace('>=','≥ ').replace('<','under ')} kg</span>`:''}${note?`<br><span class="note">${note}</span>`:''}</td><td>${amtTxt(a,kind)} in ${vol} ml ${dil}<br><span class="note">${kind==='mu'?fx(c)+' milliunits/ml':kind==='u'?fx(c)+' units/ml':mass(c)+'/ml'}</span></td><td>${fx(lo)}–${fx(hi)} ${uLabel(u)}<br><span class="note">1 ml/h = ${fx(per1)} ${uLabel(u)}</span></td><td class="n"><b>${fx(r1)}–${fx(r2)}</b> ml/h${cap&&r2>capRate?`<br><span style="color:var(--red)">max ${fx(capRate)} ml/h (cap ${du(u).min?mass(cap/60)+'/min':mass(cap)+'/h'})</span>`:''}${r1<.1?'<br><span style="color:var(--red)">below 0.1 ml/h</span>':''}</td></tr>`}).join('')+'</tbody></table>').join('');
+}
+
+function bolDose(r,W,age){
+  const [n,ct,conc,lo,hi,,mn,mx,note,flag]=r;
+  if(typeof lo==='string'){ // volume per kg
+    const v1=+lo.slice(1)*W,v2=+hi.slice(1)*W,vm=mx?+String(mx).slice(1):0;
+    const a=vm?Math.min(v1,vm):v1,b=vm?Math.min(v2,vm):v2;
+    return [`${lo.slice(1)}${lo!==hi?'–'+hi.slice(1):''} ml/kg${vm?` (max ${vm} ml)`:''}`, '', a===b?ml(a):`${ml(a)} – ${ml(b)}`];
+  }
+  let a=lo*W,b=hi*W;if(mn){a=Math.max(a,mn);b=Math.max(b,mn)}if(mx){a=Math.min(a,mx);b=Math.min(b,mx)}
+  const ml2=mass(lo).split(' '),mh=mass(hi).split(' ');
+  const rng=`${lo===hi?mass(lo):ml2[1]===mh[1]?ml2[0]+'–'+mh[0]+' '+mh[1]:mass(lo)+'–'+mass(hi)}/kg${mn?`, min ${mass(mn)}`:''}${mx?`, max ${mass(mx)}`:''}`;
+  const dose=a===b?mass(a):`${mass(a)} – ${mass(b)}`;
+  const vol=conc?(a===b?ml(a/conc):`${ml(a/conc)} – ${ml(b/conc)}`):'';
+  return [rng,dose,vol];
+}
+
+function renderPaeds(){
+  const W=+$('cw').value||0,age=$('cage').value,s=store.get('pseg','emb');
+  document.querySelectorAll('#pseg button').forEach(b=>b.setAttribute('aria-selected',b.dataset.s===s));
+  let warn='Use the most recent weight. Doses from the source charts; confirm against BNFC and local policy.';
+  if(s==='neo'&&W>6)warn='<b style="color:var(--red)">The PaNDR neonatal calculator is for babies up to 6 kg.</b> '+warn;
+  if(s!=='neo'&&age==='neo')warn='<b>Under 1 month: consider the neonatal view.</b> '+warn;
+  $('pwarn').innerHTML=warn;
+  let h='';
+  if(!(W>0)){$('pbody').innerHTML='<p class="empty">Enter the child’s weight.</p>';return}
+  if(s==='emb'){
+    h+=`<div class="card"><b>BMI above 98th centile?</b> Consider ideal body weight for adrenaline, propofol, thiopentone, ketamine, midazolam, fentanyl and morphine; adjusted body weight for rocuronium and atracurium.</div>`;
+    EMB_BOL.forEach(([g,rows])=>{h+=`<h2>${g}</h2><table class="stack"><thead><tr><th>Drug</th><th>Dose range</th><th class="n">Dose</th><th class="n">Volume</th></tr></thead><tbody>`;
+      rows.forEach(r=>{
+        if(r[9]==='u12'&&age==='teen'){h+=`<tr><td><b>Naloxone (12 years and over)</b><br><span class="note">Emergency opioid overdose</span></td><td colspan="3">400 mcg, then 800 mcg at 1-minute intervals for up to 2 doses, then 2 mg for 1 dose</td></tr>`;return}
+        const [rng,dose,vol]=bolDose(r,W,age);
+        const pnote=r[9]==='par'&&age==='neo'?' <b style="color:var(--red)">Not for under 1 month / 44 wk CGA on this chart.</b>':'';
+        h+=`<tr><td><b>${r[0]}</b>${r[1]?`<br><span class="note">${r[1]}</span>`:''}${r[8]||pnote?`<br><span class="note">${r[8]}${pnote}</span>`:''}</td><td>${rng}</td><td class="n"><b>${dose}</b></td><td class="n">${vol}</td></tr>`});
+      h+='</tbody></table>'});
+    h+=`<h2>Anaphylaxis: IM adrenaline 1:1000</h2><div class="card"><div class="res" style="font-size:32px">${ANA[age]}</div><div class="note">For the selected age band.</div></div>`;
+    h+=`<h2>Infusions</h2>`+infRows(EMB_INF,W,false);
+    const m24=W<=10?100*W:W<=20?1000+50*(W-10):1500+20*(W-20),d=Math.min(m24,W>65?2400:m24);
+    h+=`<h2>Maintenance fluids</h2><div class="card"><div class="row" style="justify-content:space-between;align-items:flex-end"><div><div class="note">100% for 24 h (100 / 50 / 20 ml/kg)</div><div class="res">${f(d,0)} ml</div><div class="note">= ${fx(d/24)} ml/h at 100%</div></div><div style="width:140px"><label for="mpc">% to give</label><input id="mpc" type="number" inputmode="decimal" value="${store.get('mpc',100)}"></div></div><p class="status" id="mout"></p><p class="note">Over 65 kg: 2400 ml/day. Maximum fluid bolus 1000 ml per dose. Usually include infusion volumes in the total. Consider the neonatal fluid calculation under 4 weeks old.</p></div>`;
+    h+=`<h2>Age guide (Embrace)</h2><div class="scroll"><table><thead><tr><th>Age</th><th class="n">Weight kg</th><th class="n">ETT</th><th class="n">Lips cm</th><th class="n">Nose cm</th><th class="n">HR</th><th class="n">RR</th><th class="n">SBP 5th</th><th class="n">SBP 50th</th></tr></thead><tbody>${AGE_TAB.map(r=>`<tr>${r.map((c,i)=>`<td class="${i?'n':''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  } else if(s==='pinf'){
+    h+=`<p class="note">PaNDR paediatric drug calculator v2.3, standard-strength infusions. * If obese, use ideal body weight. Concentrations follow the spreadsheet rules (e.g. morphine = weight in mg, max 100 mg, in 50 ml).</p>`+infRows(PINF,W,true);
+  } else {
+    NEO_BOL.forEach(([g,rows])=>{h+=`<h2>${g}</h2><table class="stack"><thead><tr><th>Drug</th><th>Usual dose</th><th class="n">Dose</th><th class="n">Volume</th></tr></thead><tbody>`;
+      rows.forEach(r=>{let dose='',vol='';
+        if(r[1]==='v'){vol=ml(r[2]*W);if(r[3])dose=r[4]==='mmol'?`${fx(r[3]*W)} mmol`:mass(r[3]*W)}
+        else if(r[1]==='vr'){vol=`${ml(r[2]*W)} – ${ml(r[3]*W)}`}
+        else dose=mass(r[2]*W);
+        h+=`<tr><td><b>${r[0]}</b></td><td>${r[r.length-1]}</td><td class="n"><b>${dose}</b></td><td class="n">${vol}</td></tr>`});
+      h+='</tbody></table>'});
+    h+=`<h2>Infusions (standardised strength)</h2><p class="note">Pick the concentration for each drug. Rates under 0.1 ml/h can’t be given on a syringe pump and show in red.</p><table class="stack"><thead><tr><th>Drug</th><th>Concentration</th><th>Dose range</th><th class="n">Rate</th></tr></thead><tbody>`+
+      NEO_INF.map(([n,vol,opts,u,lo,hi,dun],i)=>{const sel=neoSel[n]??opts[0];const c=sel*MU[u]/vol;const r1=rateFor(lo,dun,W,c),r2=rateFor(hi,dun,W,c);const red=x=>x<.1?` style="color:var(--red)"`:'';
+        return `<tr><td><b>${n}</b></td><td><select data-neo="${n}" aria-label="${n} amount">${opts.map(o=>`<option value="${o}" ${o==sel?'selected':''}>${fx(o)} ${u} in ${vol} ml</option>`).join('')}</select></td><td>${fx(lo)}–${fx(hi)} ${dun}</td><td class="n"><b${red(r1)}>${fx(r1)}</b>–<b${red(r2)}>${fx(r2)}</b> ml/h</td></tr>`}).join('')+'</tbody></table>';
+    h+=`<h2>Umbilical catheters</h2><div class="card"><div style="max-width:220px"><label for="stump">Stump length (cm)</label><input id="stump" type="number" inputmode="decimal" step="0.1" value="${store.get('stump','')}"></div><p class="status" id="ucout"></p><p class="note">UAC = (3 × weight) + 9 + stump. UVC = (2 × weight) + 5 + stump. Rosie Hospital Neonatal Handbook v18 (2022).</p></div>`;
+    h+=`<h2>ETT size and fixation length</h2><table><thead><tr><th>Weight (kg)</th><th class="n">ETT</th><th class="n">Lips (cm)</th><th class="n">Nose (cm)</th></tr></thead><tbody>${NEO_ETT.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td><td class="n">${r[3]}</td></tr>`).join('')}</tbody></table>`;
+  }
+  $('pbody').innerHTML=h;
+  if($('mpc')){const upd=()=>{const W2=+$('cw').value;const m=W2<=10?100*W2:W2<=20?1000+50*(W2-10):1500+20*(W2-20);const d=W2>65?2400:m;const p=+$('mpc').value||0;store.set('mpc',p);$('mout').textContent=`${p}% = ${f(d*p/100,0)} ml per 24 h = ${fx(d*p/100/24)} ml/h`};$('mpc').addEventListener('input',upd);upd()}
+  if($('stump')){const upd=()=>{const st=$('stump').value;store.set('stump',st);const sv=+st;$('ucout').innerHTML=st===''?'Enter the stump length to calculate.':`UAC <b>${fx(3*W+9+sv)} cm</b> · UVC <b>${fx(2*W+5+sv)} cm</b>`};$('stump').addEventListener('input',upd);upd()}
+  document.querySelectorAll('[data-neo]').forEach(sl=>sl.addEventListener('change',()=>{neoSel[sl.dataset.neo]=+sl.value;store.set('neoSel',neoSel);renderPaeds()}));
+}
+const cwSaved=store.get('cw',null);if(cwSaved){$('cw').value=cwSaved.w;$('cage').value=cwSaved.a}
+['cw','cage'].forEach(id=>$(id).addEventListener('input',()=>{store.set('cw',{w:$('cw').value,a:$('cage').value});renderPaeds()}));
+$('pseg').addEventListener('click',ev=>{const b=ev.target.closest('[data-s]');if(!b)return;store.set('pseg',b.dataset.s);renderPaeds()});
+renderPaeds();
+
 }
 </script>
 <script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}</script>
