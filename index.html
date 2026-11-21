@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AnaesDose">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="robots" content="noindex,nofollow">
+<title>AnaesDose</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: clinical, quiet, fast to read at the bedside
+   IDEA: ISO syringe labels — LA grey, vasopressor violet, opioid blue, induction yellow
+   PICTURE: one large cumulative-dose meter, stacked by drug, with % of max as the headline number
+   COLOUR and TYPE: white / true black at night; ink; danger red only for over-limit; Archivo + Inter
+   LAYOUT: weight strip, tabs, one calm column; stacks on phone */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#000000);--ink:light-dark(#121417,#eef0f2);--mute:light-dark(#5b6168,#9aa1a8);--line:light-dark(#dfe2e6,#26292d);--card:light-dark(#f4f5f7,#111315);--red:light-dark(#c8102e,#ff5a6e);--amber:light-dark(#b86e00,#ffb547);--ok:light-dark(#1d7a46,#4fd58a);--la:light-dark(#8a9097,#9aa1a8);--vp:light-dark(#8e44ad,#c08ae0);--op:light-dark(#3b82c4,#7cb8ef);--in:light-dark(#d9b400,#ffe14d);--ot:light-dark(#4a5058,#c3c8cd)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Archivo,Inter,sans-serif;line-height:1.1;margin:0;text-wrap:balance}
+h1{font-size:28px;font-weight:800}h2{font-size:22px;font-weight:800;margin:28px 0 10px}h3{font-size:17px;font-weight:600}
+.wrap{max-width:860px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) max(4vw,14px,env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) max(4vw,14px,env(safe-area-inset-left))}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding-bottom:10px}
+header p{margin:0;color:var(--mute);font-size:14px}
+.pt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;background:var(--card);border-radius:12px;padding:12px}
+label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+input,select,button{font:inherit;font-size:16px;color:var(--ink)}
+input,select{width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--op);outline-offset:2px}
+.wts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 18px;font-size:14px;color:var(--mute)}.wts b{color:var(--ink);font-variant-numeric:tabular-nums}
+nav{display:flex;gap:4px;margin:18px 0 6px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav a{flex:none;padding:12px 14px;color:var(--mute);text-decoration:none;font-weight:600;border-bottom:3px solid transparent;margin-bottom:-1px}
+nav a[aria-current]{color:var(--ink);border-color:var(--ink)}
+section[hidden]{display:none}
+.meter{margin:18px 0 8px}
+.big{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.big strong{font:800 clamp(56px,14vw,96px)/1 Archivo,sans-serif;font-variant-numeric:tabular-nums}
+.big span{color:var(--mute)}
+.bar{position:relative;height:28px;border-radius:6px;background:var(--card);overflow:hidden;display:flex;margin-top:10px;border:1px solid var(--line)}
+.bar i{display:block;height:100%;transition:width .3s}
+.bar i:nth-child(even){filter:brightness(.82)}
+.ticks{position:relative;height:18px;font-size:12px;color:var(--mute)}.ticks span{position:absolute;transform:translateX(-50%)}
+.over strong{color:var(--red)}.warn strong{color:var(--amber)}
+.status{font-weight:600}
+.btn{min-height:44px;padding:8px 16px;border-radius:8px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;background:var(--card);border-radius:12px;padding:12px;margin-top:14px}
+.form .full{grid-column:1/-1}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chk{display:flex;align-items:center;gap:8px;min-height:44px;color:var(--ink);font-size:15px;margin:0}.chk input{width:22px;min-height:22px}
+.prev{font-size:14px;color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--mute);font-weight:600}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tag{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.x{background:none;border:0;color:var(--mute);min-height:36px;min-width:36px;cursor:pointer;font-size:20px}
+.empty{color:var(--mute);padding:16px 0}
+.note{font-size:14px;color:var(--mute)}
+.card{background:var(--card);border-radius:12px;padding:14px 16px;margin-top:12px}
+.card ol,.card ul{margin:6px 0 0;padding-left:20px}
+.res{font:800 clamp(36px,9vw,56px)/1.05 Archivo,sans-serif;font-variant-numeric:tabular-nums;margin:6px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{min-height:40px;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font-size:14px;display:flex;align-items:center;gap:6px}
+.chip i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.danger{border-left:4px solid var(--red)}
+.rf{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0}.rf small{display:block;color:var(--mute)}
+.scroll{overflow-x:auto}
+footer{margin-top:32px;font-size:13px;color:var(--mute)}
+@media(max-width:600px){.pt,.form{grid-template-columns:repeat(2,minmax(0,1fr))}table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}}
+@media(prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script></head>
+<body><div class="wrap">
+<header><h1>AnaesDose</h1><p>LA dose tracker, awake fibreoptic topicalisation, infusion conversion and toxicity limits. For trained clinicians.</p></header>
+
+<div class="pt">
+  <div><label for="wt">Weight (kg)</label><input id="wt" type="number" inputmode="decimal" min="1" step="0.1" value="70"></div>
+  <div><label for="ht">Height (cm)</label><input id="ht" type="number" inputmode="decimal" min="50" step="1" value="175"></div>
+  <div><label for="sex">Sex</label><select id="sex"><option value="m">Male</option><option value="f">Female</option></select></div>
+  <div><label for="basis">Dose by</label><select id="basis"><option value="ibw">Ideal body weight</option><option value="lbw">Lean body weight</option><option value="abw">Adjusted body weight</option><option value="act">Actual weight</option><option value="man">Manual weight</option></select></div>
+  <div id="manw" hidden><label for="mwt">Manual dosing weight (kg)</label><input id="mwt" type="number" inputmode="decimal" min="1" step="0.1" value="60"></div>
+  <div class="wts" id="wts"></div>
+</div>
+
+<details class="card" id="rfbox"><summary style="cursor:pointer;font-weight:600;min-height:28px">Risk factors: dose reduction <span id="rfsum" class="note"></span></summary>
+  <p class="note">Suggested reductions follow the multifactorial approach of Rosenberg et al. (2004). Ticking a factor fills the middle of its range; every value is editable. The <b>highest</b> ticked reduction applies to all maxima — factors are not added together. Starting values are approximate: confirm them against the paper and local guidance.</p>
+  <div id="rf"></div>
+</details>
+<p class="note" style="margin:10px 0 0">Adults 18 and over only. Every maximum is a ceiling, not a target. Verify each calculation independently before giving anything.</p>
+
+<nav aria-label="Sections">
+  <a href="#dose">LA Dose</a><a href="#airway">Airway</a><a href="#infusion">Infusion</a><a href="#limits">Toxicity Limits</a><a href="#last">LAST</a>
+</nav>
+
+<!-- LA DOSE -->
+<section id="v-dose">
+  <div class="meter" id="meter"></div>
+  <div class="form" id="addf">
+    <div><label for="drug">Drug</label><select id="drug"></select></div>
+    <div><label for="prep">Preparation</label><select id="prep"><option value="sol">Solution</option><option value="top">Solution, topical airway</option><option value="spray">10% spray</option><option value="coph">Co-phenylcaine</option><option value="inf">Infusion (ml/h)</option></select></div>
+    <div id="concw"><label for="conc">Concentration (%)</label><input id="conc" type="number" inputmode="decimal" step="0.01" min="0" value="1"></div>
+    <div><label for="vol" id="voll">Volume (ml)</label><input id="vol" type="number" inputmode="decimal" step="0.1" min="0" value="10"></div>
+    <div class="full row" style="justify-content:space-between">
+      <label class="chk" id="adrw"><input type="checkbox" id="adr"> With adrenaline</label>
+      <span class="prev" id="prev"></span>
+    </div>
+    <div class="full row"><button class="btn" id="add">Add dose</button><button class="btn ghost" id="clr">Clear all</button></div>
+  </div>
+  <h2>Doses given</h2>
+  <div id="log"></div>
+  <p class="note">Toxicity is treated as additive: each dose counts as a fraction of its own drug's maximum, and the fractions are summed. Topical airway lidocaine is counted against 9 mg/kg lean body weight. Summing assumes everything was given at once, so it never underestimates. Infusions (bupivacaine, levobupivacaine, ropivacaine) are tracked separately against 24-hour maximums. Maximum = min(mg/kg × dosing weight, ceiling) × (1 − reduction).</p>
+</section>
+
+<!-- AIRWAY -->
+<section id="v-airway" hidden>
+  <h2>Awake tracheal intubation: topical lidocaine</h2>
+  <div class="card">
+    <h3>Maximum topical lidocaine (9 mg/kg lean body weight) — a maximum, not a target</h3>
+    <div class="res" id="awmax"></div>
+    <div class="note" id="awleft"></div>
+  </div>
+  <h2>What that maximum looks like</h2>
+  <div class="scroll"><table><thead><tr><th>Preparation</th><th class="n">Strength</th><th class="n">Full maximum</th><th class="n">Still available</th></tr></thead><tbody id="awtab"></tbody></table></div>
+  <div class="card">
+    <h3>Sequence (DAS 2020 ATI)</h3>
+    <ul>
+      <li><b>Sedation:</b> optional and minimal; the patient must stay cooperative.</li>
+      <li><b>Topicalisation:</b> lidocaine, tested before instrumentation; stay under 9 mg/kg LBW.</li>
+      <li><b>Oxygenation:</b> high-flow nasal oxygen throughout.</li>
+      <li><b>Performance:</b> limit attempts to 3, plus 1 by a more experienced operator.</li>
+      <li>Consider an antisialagogue such as glycopyrronium before topicalisation.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- INFUSION -->
+<section id="v-infusion" hidden>
+  <h2>Infusion unit conversion</h2>
+  <div class="chips" id="presets"></div>
+  <p class="note">Presets are typical UK concentrations — check against your hospital's standard.</p>
+  <div class="form">
+    <div><label for="iamt">Amount in syringe</label><input id="iamt" type="number" inputmode="decimal" step="any" value="4"></div>
+    <div><label for="iu">Unit</label><select id="iu"><option>mg</option><option>mcg</option><option>units</option></select></div>
+    <div><label for="ivol">Total volume (ml)</label><input id="ivol" type="number" inputmode="decimal" step="any" value="50"></div>
+    <div><label>Concentration</label><div id="icon" style="min-height:44px;display:flex;align-items:center;font-weight:600"></div></div>
+    <div><label for="idose">Dose</label><input id="idose" type="number" inputmode="decimal" step="any" value="0.1"></div>
+    <div><label for="idu">Dose unit</label><select id="idu"></select></div>
+    <div><label for="irate">Rate (ml/h)</label><input id="irate" type="number" inputmode="decimal" step="any"></div>
+    <div><label>&nbsp;</label><div class="note" style="min-height:44px;display:flex;align-items:center">Edit dose or rate</div></div>
+  </div>
+  <div class="card"><div class="note">Running at</div><div class="res" id="iout"></div><div class="note" id="iall"></div></div>
+</section>
+
+<!-- LIMITS -->
+<section id="v-limits" hidden>
+  <h2>Maximum doses for <span id="lw"></span></h2>
+  <table class="stack"><thead><tr><th>Drug</th><th class="n">mg/kg</th><th class="n">Cap</th><th class="n">Max for patient</th><th class="n">Volume at max</th></tr></thead><tbody id="ltab"></tbody></table>
+  <p class="note">Typical UK figures (BNF, product information, DAS 2020). Ceilings are adult single-dose maxima; the lower of the weight-based dose and the ceiling applies. Adult mg/kg figures are conventional because UK SmPCs don't give them. Lower limits apply to highly vascular sites, the elderly, pregnancy, and hepatic, renal or cardiac impairment.</p>
+  <p class="note">Suspected toxicity? Open the <a href="#last">LAST tab</a> for lipid doses and a timer.</p>
+</section>
+
+<!-- LAST -->
+<section id="v-last" hidden>
+  <h2>LA systemic toxicity</h2>
+  <div class="row"><label class="chk" style="font-weight:600">Guideline</label>
+   <select id="lg" style="width:auto"><option value="uk">AAGBI / AoA (UK)</option><option value="asra">ASRA 2020</option></select></div>
+  <div class="card danger">
+    <div class="note">20% lipid emulsion for <span id="lpw"></span></div>
+    <div class="scroll"><table><tbody id="lptab"></tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><div><div class="note">Time since first bolus</div><div class="res" id="tclk">0:00</div></div>
+    <div class="row"><button class="btn" id="tgo">Start: bolus given</button><button class="btn ghost" id="tlog">Log bolus</button><button class="btn ghost" id="trst">Reset</button></div></div>
+    <p class="status" id="tnext"></p>
+    <div id="tev" class="note"></div>
+  </div>
+  <div class="card">
+    <h3>Immediate management</h3>
+    <ol>
+      <li>Stop injecting. Call for help. Get the lipid emulsion.</li>
+      <li>Airway, 100% oxygen, consider mild hyperventilation (raising pH may help); IV access.</li>
+      <li>Seizures: benzodiazepine first; small doses of propofol or thiopental only if haemodynamically stable.</li>
+      <li>Cardiac arrest: CPR and ALS. Arrhythmias can be very refractory; continue CPR for a prolonged period (may exceed 1 hour). Consider cardiopulmonary bypass/ECMO.</li>
+      <li id="lasra" hidden>ASRA: reduce adrenaline to ≤1 mcg/kg boluses; avoid vasopressin, calcium-channel blockers, beta-blockers and further local anaesthetic.</li>
+      <li>Avoid lidocaine as an antiarrhythmic. Do not use propofol as a lipid substitute.</li>
+      <li>Report the case and arrange follow-up (e.g. pancreatitis screen after lipid).</li>
+    </ol>
+  </div>
+</section>
+
+<footer>Decision support only. Verify every dose against current local protocols, the BNF and product information before giving anything.</footer>
+</div>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const DRUGS=[
+ {k:'lido',n:'Lidocaine',p:3,a:7,cp:200,ca:500,c:['1%','2%'],col:'--la'},
+ {k:'bupi',n:'Bupivacaine',p:2,a:2,cp:150,ca:150,c:['0.25%','0.5%'],col:'--ot',d24:400},
+ {k:'levo',n:'Levobupivacaine',p:2,a:2,cp:150,ca:150,c:['0.25%','0.5%'],col:'--op',d24:400},
+ {k:'ropi',n:'Ropivacaine',p:3,a:3,cp:300,ca:300,c:['0.2%','0.75%'],col:'--vp',d24:770},
+ {k:'pril',n:'Prilocaine',p:6,a:8,cp:400,ca:600,c:['0.5%','1%'],col:'--in'},
+ {k:'chlo',n:'Chloroprocaine',p:11,a:14,cp:800,ca:1000,c:['1%','3%'],col:'--amber'}];
+const TOPICAL=9;
+const RF=[['age','Age over 70','10–20%',15],['renal','Renal impairment','10–20%',15],['hepatic','Hepatic impairment','10–50%',30],['cardiac','Heart failure','10–30%',20],['preg','Pregnancy','10–30%',20],['frail','Frailty or low protein (low albumin/AAG)','10–30%',20]];
+let rfState=store0('rf',{});
+function store0(k,d){try{const v=localStorage.getItem('ad_'+k);return v?JSON.parse(v):d}catch(e){return d}}
+function reduction(){let m=0;RF.forEach(r=>{const st=rfState[r[0]];if(st&&st.on)m=Math.max(m,+st.v||0)});return Math.min(Math.max(m,0),90)}
+const PRESETS=[
+ {n:'Noradrenaline',amt:4,u:'mg',v:50,du:'mcg/kg/min',d:.05,col:'--vp'},
+ {n:'Adrenaline',amt:5,u:'mg',v:50,du:'mcg/kg/min',d:.05,col:'--vp'},
+ {n:'Metaraminol',amt:20,u:'mg',v:40,du:'mg/h',d:2,col:'--vp'},
+ {n:'Phenylephrine',amt:10,u:'mg',v:100,du:'mcg/min',d:50,col:'--vp'},
+ {n:'Remifentanil',amt:2,u:'mg',v:40,du:'mcg/kg/min',d:.1,col:'--op'},
+ {n:'Propofol 1%',amt:500,u:'mg',v:50,du:'mg/kg/h',d:6,col:'--in'},
+ {n:'Dexmedetomidine',amt:200,u:'mcg',v:50,du:'mcg/kg/h',d:.5,col:'--ot'},
+ {n:'Ketamine',amt:500,u:'mg',v:50,du:'mg/kg/h',d:.5,col:'--ot'},
+ {n:'Insulin',amt:50,u:'units',v:50,du:'units/h',d:2,col:'--ot'}];
+// dose units: factor to convert to base (mcg or units) per minute; perkg flag
+const DU={'mcg/kg/min':[1,1,'mcg'],'mcg/kg/h':[1/60,1,'mcg'],'mg/kg/h':[1000/60,1,'mcg'],'ng/kg/min':[.001,1,'mcg'],'mcg/min':[1,0,'mcg'],'mcg/h':[1/60,0,'mcg'],'mg/h':[1000/60,0,'mcg'],'mg/kg/min':[1000,1,'mcg'],'units/h':[1/60,0,'u'],'units/kg/h':[1/60,1,'u']};
+
+const store={get(k,d){try{const v=localStorage.getItem('ad_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('ad_'+k,JSON.stringify(v))}catch(e){}}};
+let log=store.get('log',[]);
+const pt=store.get('pt',null);
+if(pt){$('wt').value=pt.wt;$('ht').value=pt.ht;$('sex').value=pt.sex;$('basis').value=pt.basis;if(pt.mwt)$('mwt').value=pt.mwt}
+
+const f=(x,d=0)=>isFinite(x)?(+x).toLocaleString('en-GB',{maximumFractionDigits:d,minimumFractionDigits:0}):'–';
+const cv=v=>getComputedStyle(document.documentElement).getPropertyValue(v)||'#888';
+
+function weights(){
+  const W=+$('wt').value,H=+$('ht').value,m=$('sex').value==='m';
+  const bmi=W/((H/100)**2);
+  const lbw=m?9270*W/(6680+216*bmi):9270*W/(8780+244*bmi);
+  const ibw2=(m?50:45.5)+2.3*(H/2.54-60);
+  const ib=Math.min(W,Math.max(ibw2,0));
+  const b=$('basis').value;
+  const abw=Math.min(W,ib+0.4*(W-ib));
+  const dw=Math.min(W,b==='lbw'?lbw:b==='ibw'?ib:b==='abw'?abw:b==='man'?(+$('mwt').value||0):W);
+  const red=reduction();
+  return {W,H,bmi,lbw:Math.min(W,lbw),ibw:ib,abw,dw:dw>0?dw:0,ok:W>0&&H>0,red,k:1-red/100};
+}
+
+function entryCalc(e,w){
+  const d=DRUGS.find(x=>x.k===e.drug);let mg,lim;
+  if(e.prep==='spray'){mg=e.vol*10}else if(e.prep==='coph'){mg=e.vol*50}else{mg=e.conc*10*e.vol}
+  if(e.prep==='inf'){mg=e.conc*10*e.vol*24;lim=(d.d24||0)*w.k;return {mg,lim,frac:lim>0?mg/lim:0,d,inf:1}}
+  if(e.prep==='sol'){const pk=e.adr?d.a:d.p,cap=e.adr?d.ca:d.cp;lim=Math.min(pk*w.dw,cap)*w.k}
+  else lim=TOPICAL*w.lbw*w.k;
+  return {mg,lim,frac:lim>0?mg/lim:0,d};
+}
+
+function renderDose(){
+  const w=weights();let tot=0,segs='',rows='',irows='',itot=0;
+  log.forEach((e,i)=>{const r=entryCalc(e,w);
+    if(r.inf){itot+=r.frac;irows+=`<tr><td><span class="tag" style="background:var(${r.d.col})"></span>${r.d.n}</td><td>${f(e.conc,3)}% at ${f(e.vol,1)} ml/h</td><td class="n">${f(r.mg,0)} mg/24 h</td><td class="n">${f(r.frac*100,0)}%</td><td><button class="x" data-i="${i}" aria-label="Remove">×</button></td></tr>`;return}
+    tot+=r.frac;
+    segs+=`<i style="width:${r.frac*100}%;background:var(${r.d.col})" title="${r.d.n}"></i>`;
+    const prep=e.prep==='spray'?`10% spray × ${f(e.vol)}`:e.prep==='coph'?`Co-phenylcaine ${f(e.vol,1)} ml`:`${f(e.conc,2)}% × ${f(e.vol,1)} ml${e.prep==='top'?' topical':''}`;
+    rows+=`<tr><td><span class="tag" style="background:var(${r.d.col})"></span>${r.d.n}${e.adr?' + adr':''}</td><td>${prep}</td><td class="n">${f(r.mg,1)} mg</td><td class="n">${f(r.frac*100,0)}%</td><td><button class="x" data-i="${i}" aria-label="Remove">×</button></td></tr>`});
+  const pc=tot*100,cls=pc>=100?'over':pc>=75?'warn':'';
+  const left=Math.max(0,1-tot);
+  const d=DRUGS.find(x=>x.k===$('drug').value);
+  const prep=$('prep').value,adr=$('adr').checked&&prep==='sol';
+  const lim=prep==='inf'?0:prep==='sol'?Math.min((adr?d.a:d.p)*w.dw,adr?d.ca:d.cp)*w.k:TOPICAL*w.lbw*w.k;
+  const leftmg=left*lim;
+  const status=pc>=100?'Over the maximum — stop and reassess.':pc>=75?'Approaching the maximum.':'Within limits.';
+  $('meter').className='meter '+cls;
+  $('meter').innerHTML=`<div class="big"><strong>${f(pc,0)}%</strong><span>of maximum combined LA dose</span></div>
+   <div class="bar" role="img" aria-label="${f(pc,0)}% of maximum">${segs}</div>
+   <div class="ticks"><span style="left:0;transform:none">0</span><span style="left:50%">50%</span><span style="left:75%">75%</span><span style="left:100%;transform:translateX(-100%)">100%</span></div>
+   <p class="status">${status}${prep==='inf'?'':` Still available:`} ${prep==='inf'?'':`<b>${f(leftmg,0)} mg</b> ${d.n.toLowerCase()}${adr?' with adrenaline':''}${prep!=='sol'?' (topical)':''}${prep==='sol'?` = ${f(leftmg/($('conc').value*10||1),1)} ml of ${f(+$('conc').value,2)}%`:''}.`}</p>
+   ${irows?`<p class="status">Infusions (separate 24-hour limit): <b style="color:var(${itot>=1?'--red':itot>=.75?'--amber':'--ink'})">${f(itot*100,0)}%</b> of 24-hour maximum${itot>=1?' — over the limit, reduce or stop.':''}</p>`:''}`;
+  $('log').innerHTML=(rows?`<table class="stack"><thead><tr><th>Drug</th><th>Given</th><th class="n">Dose</th><th class="n">% of max</th><th></th></tr></thead><tbody>${rows}</tbody></table>`:'<p class="empty">No bolus or topical doses logged yet.</p>')+(irows?`<h3 style="margin-top:18px">Infusions</h3><table class="stack"><thead><tr><th>Drug</th><th>Running</th><th class="n">Per 24 h</th><th class="n">% of 24 h max</th><th></th></tr></thead><tbody>${irows}</tbody></table>`:'');
+  // preview
+  const e=formEntry(),r=entryCalc(e,w);
+  $('prev').textContent=r.inf?`= ${f(r.mg/24,1)} mg/h, ${f(r.mg,0)} mg per 24 h (${f(r.frac*100,0)}% of 24 h max)`:`= ${f(r.mg,1)} mg${e.prep==='coph'?` lidocaine + ${f(e.vol*5,1)} mg phenylephrine`:''} (${f(r.frac*100,0)}% of max)`;
+}
+
+function formEntry(){return {drug:$('drug').value,prep:$('prep').value,conc:+$('conc').value||0,vol:+$('vol').value||0,adr:$('adr').checked}}
+function syncForm(){
+  const dk=$('drug').value,lido=dk==='lido',inf=!!DRUGS.find(x=>x.k===dk).d24;
+  const ok=v=>v==='sol'||(lido&&v!=='inf')||(inf&&v==='inf');
+  if(!ok($('prep').value))$('prep').value='sol';
+  [...$('prep').options].forEach(o=>o.disabled=!ok(o.value));
+  const pp=$('prep').value;
+  $('concw').style.visibility=(pp==='spray'||pp==='coph')?'hidden':'visible';
+  $('adrw').style.visibility=pp==='sol'?'visible':'hidden';
+  $('voll').textContent=pp==='spray'?'Number of sprays':pp==='inf'?'Rate (ml/h)':'Volume (ml)';
+}
+
+function renderAirway(){
+  const w=weights(),max=TOPICAL*w.lbw*w.k;
+  let used=0;log.forEach(e=>{if(e.prep!=='sol'&&e.prep!=='inf'){used+=entryCalc(e,w).mg}});
+  let tot=0;log.forEach(e=>{const r=entryCalc(e,w);if(!r.inf)tot+=r.frac});
+  const avail=Math.max(0,1-tot)*max;
+  $('awmax').textContent=f(max,0)+' mg';
+  $('awleft').textContent=`Lean body weight ${f(w.lbw,1)} kg. Topical lidocaine logged so far: ${f(used,0)} mg. Still available, after all logged LA: ${f(avail,0)} mg.`;
+  const P=[['10% spray','10 mg/spray',10,'sprays'],['Co-phenylcaine','50 mg/ml',50,'ml'],['Lidocaine 4%','40 mg/ml',40,'ml'],['Lidocaine 2%','20 mg/ml',20,'ml'],['Lidocaine 1%','10 mg/ml',10,'ml']];
+  $('awtab').innerHTML=P.map(p=>`<tr><td>${p[0]}</td><td class="n">${p[1]}</td><td class="n">${f(Math.floor(max/p[2]*(p[3]==='ml'?10:1))/(p[3]==='ml'?10:1),1)} ${p[3]}</td><td class="n">${f(Math.floor(avail/p[2]*(p[3]==='ml'?10:1))/(p[3]==='ml'?10:1),1)} ${p[3]}</td></tr>`).join('');
+}
+
+let lastEdit='dose';
+function renderInf(){
+  const w=weights(),amt=+$('iamt').value,u=$('iu').value,v=+$('ivol').value;
+  const base=u==='mg'?amt*1000:amt; // mcg or units
+  const conc=base/v; // mcg/ml or units/ml
+  const isU=u==='units';
+  $('icon').textContent=isU?`${f(conc,3)} units/ml`:conc>=1000?`${f(conc/1000,3)} mg/ml`:`${f(conc,2)} mcg/ml`;
+  [...$('idu').options].forEach(o=>o.disabled=(DU[o.value][2]==='u')!==isU);
+  if($('idu').selectedOptions[0]?.disabled){$('idu').value=[...$('idu').options].find(o=>!o.disabled).value}
+  const du=DU[$('idu').value],kg=du[1]?w.W:1;
+  if(lastEdit==='dose'){const perMin=+$('idose').value*du[0]*kg;$('irate').value=conc>0?+(perMin*60/conc).toFixed(2):''}
+  else{const perMin=+$('irate').value*conc/60;$('idose').value=+(perMin/(du[0]*kg)).toPrecision(3)}
+  const rate=+$('irate').value,perMin=rate*conc/60;
+  $('iout').textContent=`${f(rate,2)} ml/h`;
+  const sig=x=>x===0||!isFinite(x)?'0':Math.abs(x)>=100?f(x,0):(+x.toPrecision(3)).toString();const outs=Object.keys(DU).filter(k=>(DU[k][2]==='u')===isU&&k!==$('idu').value).map(k=>`${sig(perMin/(DU[k][0]*(DU[k][1]?w.W:1)))} ${k}`);
+  $('iall').textContent=`= ${f(+$('idose').value,3)} ${$('idu').value} at ${f(w.W,1)} kg actual weight. Also: ${outs.join(' · ')}`;
+}
+
+function renderLimits(){
+  const w=weights();
+  $('lw').textContent=`${f(w.dw,1)} kg (${$('basis').selectedOptions[0].text.toLowerCase()})${w.red?`, reduced by ${f(w.red,0)}%`:''}`;
+  const rows=[];
+  DRUGS.forEach(d=>{[[0,d.p,d.cp],[1,d.a,d.ca]].forEach(([adr,pk,cap])=>{
+    if(adr&&d.a===d.p)return;
+    const mx=Math.min(pk*w.dw,cap)*w.k;
+    rows.push(`<tr><td><span class="tag" style="background:var(${d.col})"></span>${d.n}${adr?' + adrenaline':d.a!==d.p?' plain':''}</td><td class="n">${pk}</td><td class="n">${cap} mg</td><td class="n"><b>${f(mx,0)} mg</b></td><td class="n">${d.c.map(c=>`${f(mx/(parseFloat(c)*10),1)} ml of ${c}`).join('<br>')}</td></tr>`)})});
+  rows.push(`<tr><td><span class="tag" style="background:var(--la)"></span>Lidocaine, topical airway (LBW)</td><td class="n">9</td><td class="n">—</td><td class="n"><b>${f(TOPICAL*w.lbw*w.k,0)} mg</b></td><td class="n">${f(TOPICAL*w.lbw*w.k/10,0)} sprays of 10%</td></tr>`);
+  DRUGS.filter(d=>d.d24).forEach(d=>rows.push(`<tr><td><span class="tag" style="background:var(${d.col})"></span>${d.n} infusion, per 24 h</td><td class="n">—</td><td class="n">${d.d24} mg</td><td class="n"><b>${f(d.d24*w.k,0)} mg</b></td><td class="n">${f(d.d24*w.k/24,1)} mg/h</td></tr>`));
+  $('ltab').innerHTML=rows.join('');
+}
+function renderLast(){
+  const w=weights(),W=w.W,g=$('lg').value;
+  $('lasra').hidden=g!=='asra';
+  let R;
+  if(g==='uk'){$('lpw').textContent=`${f(W,1)} kg actual weight`;
+    R=[['Initial bolus','1.5 ml/kg over 1 min',`${f(1.5*W,0)} ml`],['Then start infusion','15 ml/kg/h',`${f(15*W,0)} ml/h`],['At 5 min, if not stable','Repeat bolus (max 2 repeats, 5 min apart)',`${f(1.5*W,0)} ml each`],['…and double infusion','30 ml/kg/h',`${f(30*W,0)} ml/h`],['Cumulative maximum','12 ml/kg',`${f(12*W,0)} ml`]]}
+  else{const big=W>70,lb=w.lbw;$('lpw').textContent=big?`${f(W,1)} kg (over 70 kg)`:`${f(lb,1)} kg lean body weight (70 kg or less)`;
+    R=[['Initial bolus',big?'100 ml over 2–3 min':'1.5 ml/kg LBW over 2–3 min',big?'100 ml':`${f(1.5*lb,0)} ml`],['Then infusion',big?'200–250 ml over 15–20 min':'0.25 ml/kg/min LBW',big?'200–250 ml':`${f(.25*lb,1)} ml/min = ${f(15*lb,0)} ml/h`],['If still unstable','Repeat bolus once or twice; double infusion',big?'100 ml; 400–500 ml over 15–20 min':`${f(1.5*lb,0)} ml; ${f(.5*lb,1)} ml/min`],['Continue','At least 10 min after circulation is stable',''],['Upper limit','About 12 ml/kg over the first 30 min',`${f(12*(big?W:lb),0)} ml`]]}
+  $('lptab').innerHTML=R.map(r=>`<tr><td><b>${r[0]}</b><br><span class="note">${r[1]}</span></td><td class="n" style="font-size:20px;font-weight:700">${r[2]}</td></tr>`).join('');
+  renderTimer();
+}
+let T=store.get('lastT',null); // {t0, ev:[{t,txt}]}
+function mmss(ms){const s=Math.max(0,Math.floor(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function renderTimer(){
+  const w=weights();
+  if(!T){$('tclk').textContent='0:00';$('tnext').textContent='Press Start when the first lipid bolus is given.';$('tev').innerHTML='';$('tgo').hidden=false;$('tlog').hidden=true;return}
+  $('tgo').hidden=true;$('tlog').hidden=false;
+  const el=Date.now()-T.t0;$('tclk').textContent=mmss(el);
+  const boluses=T.ev.filter(e=>e.b).length;
+  let nx;
+  if(boluses>=3)nx='Maximum 3 boluses given. Continue infusion; respect the cumulative limit.';
+  else{const due=T.t0+boluses*5*60000;const rem=due-Date.now();
+    nx=rem>0?`Next review in ${mmss(rem)}: if still unstable give bolus ${boluses+1} of 3${boluses===1?' and double the infusion':''}.`:`Review now: if still unstable give bolus ${boluses+1} of 3${boluses===1?' and double the infusion':''}.`}
+  $('tnext').textContent=nx;
+  $('tev').innerHTML=T.ev.map(e=>`${mmss(e.t-T.t0)} — ${e.txt}`).join('<br>');
+}
+$('lg').addEventListener('change',renderLast);
+$('tgo').addEventListener('click',()=>{const n=Date.now();T={t0:n,ev:[{t:n,txt:'Bolus 1 given, infusion started',b:1}]};store.set('lastT',T);renderTimer()});
+$('tlog').addEventListener('click',()=>{if(!T)return;const b=T.ev.filter(e=>e.b).length;if(b>=3)return;T.ev.push({t:Date.now(),txt:`Bolus ${b+1} given${b===1?', infusion doubled':''}`,b:1});store.set('lastT',T);renderTimer()});
+let rarm=false;$('trst').addEventListener('click',()=>{if(!rarm){rarm=true;$('trst').textContent='Tap again';setTimeout(()=>{rarm=false;$('trst').textContent='Reset'},3000);return}rarm=false;$('trst').textContent='Reset';T=null;store.set('lastT',null);renderTimer()});
+const tick=setInterval(()=>{if(T&&!$('v-last').hidden)renderTimer()},1000);
+
+function renderWts(){const w=weights();$('manw').hidden=$('basis').value!=='man';$('wts').innerHTML=`<span>BMI <b>${f(w.bmi,1)}</b></span><span>Ideal <b>${f(w.ibw,1)} kg</b></span><span>Lean <b>${f(w.lbw,1)} kg</b></span><span>Adjusted <b>${f(w.abw,1)} kg</b></span><span>Dosing weight <b>${f(w.dw,1)} kg</b></span>${w.red?`<span>Reduction <b>${f(w.red,0)}%</b></span>`:''}`}
+
+function renderRF(){$('rf').innerHTML=RF.map(r=>{const st=rfState[r[0]]||{};return `<div class="rf"><label class="chk" style="min-height:40px"><input type="checkbox" data-rf="${r[0]}" ${st.on?'checked':''}><span>${r[1]}<small>Suggested ${r[2]}</small></span></label><input type="number" inputmode="decimal" min="0" max="90" step="1" data-rv="${r[0]}" value="${st.v??r[3]}" aria-label="${r[1]} reduction %"></div>`}).join('');}
+function rfSum(){const red=reduction();$('rfsum').textContent=red?`— ${red}% applied`:'— none'}
+function all(){rfSum();renderWts();renderDose();renderAirway();renderInf();renderLimits();renderLast();store.set('pt',{wt:$('wt').value,ht:$('ht').value,sex:$('sex').value,basis:$('basis').value,mwt:$('mwt').value})}
+
+// setup
+renderRF();
+$('rf').addEventListener('input',ev=>{const t=ev.target,k=t.dataset.rf||t.dataset.rv;if(!k)return;const r=RF.find(x=>x[0]===k);const st=rfState[k]||{v:r[3]};if(t.dataset.rf){st.on=t.checked;if(t.checked&&st.v==null)st.v=r[3]}else st.v=+t.value;rfState[k]=st;store.set('rf',rfState);all()});
+$('mwt').addEventListener('input',all);
+$('drug').innerHTML=DRUGS.map(d=>`<option value="${d.k}">${d.n}</option>`).join('');
+$('idu').innerHTML=Object.keys(DU).map(k=>`<option>${k}</option>`).join('');
+$('idu').value='mcg/kg/min';
+$('presets').innerHTML=PRESETS.map((p,i)=>`<button class="chip" data-p="${i}"><i style="background:var(${p.col})"></i>${p.n} ${p.amt} ${p.u}/${p.v} ml</button>`).join('');
+$('presets').addEventListener('click',ev=>{const b=ev.target.closest('[data-p]');if(!b)return;const p=PRESETS[b.dataset.p];$('iamt').value=p.amt;$('iu').value=p.u;$('ivol').value=p.v;$('idu').value=p.du;$('idose').value=p.d;lastEdit='dose';renderInf()});
+['wt','ht','sex','basis'].forEach(id=>$(id).addEventListener('input',all));
+['drug','prep'].forEach(id=>$(id).addEventListener('change',()=>{syncForm();renderDose()}));
+['conc','vol','adr'].forEach(id=>$(id).addEventListener('input',renderDose));
+['iamt','iu','ivol','idu'].forEach(id=>$(id).addEventListener('input',renderInf));
+$('idose').addEventListener('input',()=>{lastEdit='dose';renderInf()});
+$('irate').addEventListener('input',()=>{lastEdit='rate';renderInf()});
+$('add').addEventListener('click',()=>{const e=formEntry();if(e.vol<=0||(e.prep!=='spray'&&e.prep!=='coph'&&e.conc<=0))return;if(e.prep!=='sol')e.adr=false;if(e.prep==='inf'&&!log.some(x=>x.prep!=='inf')){}log.push(e);store.set('log',log);all()});
+let armed=false;
+$('clr').addEventListener('click',()=>{if(!log.length)return;if(!armed){armed=true;$('clr').textContent='Tap again to clear';setTimeout(()=>{armed=false;$('clr').textContent='Clear all'},3000);return}armed=false;$('clr').textContent='Clear all';log=[];store.set('log',log);all()});
+$('log').addEventListener('click',ev=>{const b=ev.target.closest('[data-i]');if(!b)return;log.splice(+b.dataset.i,1);store.set('log',log);all()});
+
+const views=['dose','airway','infusion','limits','last'];
+function route(){const h=location.hash.slice(1),v=views.includes(h)?h:'dose';views.forEach(x=>{$('v-'+x).hidden=x!==v});document.querySelectorAll('nav a').forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+v))}
+window.addEventListener('hashchange',route);
+syncForm();route();all();
+}
+</script>
+<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}</script>
+</body>
+</html>
